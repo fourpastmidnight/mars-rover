@@ -7,7 +7,7 @@ NASA's Mars rover Curiosity. Currently, it's a mimimal console application.
 
 ## Prerequisites
 
-To build and run this application, you must have Visual Studio 2019 and .NET Core 3.1.
+To build and run this application, you must have .NET Core 3.1 installed.
 
 ## Building SimplePhotoDownloader
 
@@ -22,8 +22,8 @@ minimal set of parameters:
 ```
 SimplePhotoDownloader v0.1.0
 
-  usage SimplePhotoDownloader.exe --date <date> [--api-key <api-key>]
-                                  [--output <path>]
+  usage SimplePhotoDownloader.exe (--date <date> | --dates <path>)
+                                  [--api-key <api-key>] [--output <path>]
 
   Downloads NASA Mars Curiosity rover photos for the specified date. Dates
   which cannot be parsed are simply ignored.
@@ -40,6 +40,11 @@ SimplePhotoDownloader v0.1.0
                                   on the specified date. This argument is
                                   mutually exclusive with --dates
 
+    --dates <path>                Downloads photos for the NASA Mars rovers
+                                  for the dates listed in the file specified
+                                  by <path>. The file should consist of one
+                                  date per line.
+
     --output <path>               Specify the destination folder where photos
                                   will be stored. If this argument is not spec-
                                   ified, on Windows photos will be stored at:
@@ -55,13 +60,11 @@ Currently, the application only downloads photos for the NASA Mars rover Curiosi
 
 ## Known Issues / Limitations
 
-1. Only a single date can be specified
-2. The NASA Mars rover is hard-coded to Curiosity.
-3. The application only lists the URLs for the photos and does not download them
+1. The NASA Mars rover is hard-coded to Curiosity.
+2. The application only lists the URLs for the photos and does not download them
 
 ## Planned Additional Features
 
-* Allow dates to be listed in a file and read by the application to download photos for mulitple dates
 * Allow photos to be retrieved for NASA Mars rovers Spirit and Opportunity.
 * Put this feature set behind a Web API, which will act as an "intermediate cache"
     * Upon API startup, if configured with a file with a list of dates, retrieve NASA Mars rover

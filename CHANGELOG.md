@@ -1,5 +1,11 @@
 # CHANGELOG
 
+## Version 0.4.0
+
+* **NEW** Adds a new `--dates` parameter that accepts a path to a file containing
+  dates, one on each line, for photos to be downloaded which were taken by the NASA
+  Mars rover Curiosity.
+
 ## Version 0.3.0
 
 * **NEW** Downloads photos taken by NASA's Mars rover Curiosity on a specified date.

@@ -1,0 +1,7 @@
+﻿<SolutionConfiguration>
+  <Settings>
+    <AllowParallelTestExecution>True</AllowParallelTestExecution>
+    <SolutionConfigured>True</SolutionConfigured>
+    <XUnit2Enabled>True</XUnit2Enabled>
+  </Settings>
+</SolutionConfiguration>

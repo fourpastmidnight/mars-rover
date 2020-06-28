@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -12,11 +11,9 @@ namespace SimplePhotoDownloader
 {
     class Program
     {
-        private static HttpClient s_httpClient = new HttpClient();
-        private static DateTime s_date;
-        private static string s_apiKey = "DEMO_KEY";
-        private static string s_output;
-        private static CancellationTokenSource cts = new CancellationTokenSource();
+        private static readonly HttpClient s_httpClient = new HttpClient();
+        private static readonly string DemoApiKey = "DEMO_KEY";
+        private static readonly CancellationTokenSource cts = new CancellationTokenSource();
 
         static async Task<int> Main(string[] args)
         {
@@ -26,65 +23,44 @@ namespace SimplePhotoDownloader
                 cts.Cancel();
             };
 
-            if (args.Length == 0 || (args.Length == 1 && args[0].Equals("--help", StringComparison.OrdinalIgnoreCase)))
-            {
-                ShowHelp();
-                return 1;
-            }
-
             var argsList = args.ToList();
 
-            var dateArgIndex = argsList.FindIndex(a => a.Equals("--date", StringComparison.OrdinalIgnoreCase));
-            if (dateArgIndex == -1)
+            if (argsList.HelpRequested())
             {
                 ShowHelp();
                 return 1;
             }
 
-            if ((argsList.Count - 1) == dateArgIndex)
+            List<DateTime> dates;
+            var apiKey = DemoApiKey;
+            var output = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyPictures), "MarsRoverPhotos");
+
+            // ! NOTE: I'm using an ArgumentException for simplicity in this application.
+            // !       HOWEVER, this is BAD because it's using exceptions for control flow.
+            // !       Given this is a small "demo app", I'm OK with it--it's throw away code.
+            try
             {
-                Console.WriteLine("ERROR: A valid date was not provided for --date.");
-                ShowHelp();
+                apiKey = argsList.GetApiKey(defaultValue: DemoApiKey);
+                dates = argsList.GetDates();
+                output = argsList.GetOutputPath(defaultValue: output);
+            }
+            catch (ArgumentException e)
+            {
+                Console.WriteLine(e.Message);
+                Console.WriteLine("       Use --help to get help with using this program.");
                 return 1;
             }
 
-            if (!DateTime.TryParse(argsList[dateArgIndex + 1], out s_date))
-            {
-                Console.WriteLine("ERROR: Unable to parse the value provided for --date as a date.");
-                ShowHelp();
-                return 1;
-            }
-
-            var apiKeyIndex = argsList.FindIndex(a => a.Equals("--api-key", StringComparison.OrdinalIgnoreCase));
-            if (apiKeyIndex > -1 && argsList.Count -1 != apiKeyIndex)
-            {
-                if (argsList[apiKeyIndex + 1].Equals("--date", StringComparison.OrdinalIgnoreCase))
-                {
-                    Console.WriteLine("ERROR: No value for --api-key was specified.");
-                    ShowHelp();
-                    return 1;
-                }
-
-                s_apiKey = argsList[apiKeyIndex + 1];
-            }
-
-            s_output = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyPictures), $"MarsRoverPhotos");
-            var outputArgIndex = argsList.FindIndex(a => a.Equals("--output", StringComparison.OrdinalIgnoreCase));
-            if (outputArgIndex > -1 && (argsList.Count > outputArgIndex + 1) && !argsList[outputArgIndex + 1].StartsWith("--"))
-            {
-                s_output = argsList[outputArgIndex + 1];
-            }
-
-            if (!Directory.Exists(s_output))
+            if (!Directory.Exists(output))
             {
                 try
                 {
-                    Directory.CreateDirectory(s_output);
+                    Directory.CreateDirectory(output);
                 }
                 catch
                 {
                     Console.WriteLine("ERROR: An error occurred trying to create the directory:");
-                    Console.WriteLine($"  '{s_output}'");
+                    Console.WriteLine($"  '{output}'");
                     Console.WriteLine("\nPlease ensure the path is valid and that you have permission");
                     Console.WriteLine("to write to the specified location.\n");
                     return 1;
@@ -93,7 +69,7 @@ namespace SimplePhotoDownloader
 
             try
             {
-                await DownloadPhotos("Curiosity", s_date, s_apiKey, s_output, cts.Token);
+                await DownloadPhotos("Curiosity", dates, apiKey, output, cts.Token);
             }
             catch (OperationCanceledException)
             {
@@ -110,7 +86,7 @@ namespace SimplePhotoDownloader
                 return 1;
             }
 
-            Console.WriteLine($"\nFinished downloading photos to '{s_output}'.\n");
+            Console.WriteLine($"\nFinished downloading photos to '{output}'.\n");
             return 0;
         }
 
@@ -127,34 +103,38 @@ namespace SimplePhotoDownloader
             return (from p in photos select p["img_src"]?.ToString() ?? "").Distinct().ToList();
         }
 
-        public static async Task DownloadPhotos(string rover, DateTime date, string apiKey, string destinationFolder, CancellationToken token = default)
+        public static async Task DownloadPhotos(string rover, List<DateTime> dates, string apiKey, string destinationFolder, CancellationToken token = default)
         {
-            string outputDir = Path.Combine(destinationFolder, rover, date.ToString("yyyy-MM-dd"));
-            if (!Directory.Exists(outputDir)) Directory.CreateDirectory(outputDir);
-
-            await (
-                from photoUrl in (await GetPhotoUrls(rover, date, apiKey, token))
-                let path = Path.Combine(outputDir, photoUrl.Substring(photoUrl.LastIndexOf('/') + 1))
-                where !File.Exists(path)
-                select new { DownloadUrl = photoUrl, Path = path }
-            )
-            .ForEachAsync(Environment.ProcessorCount, async pd =>
+            foreach (var date in dates)
             {
-                await s_httpClient.GetByteArrayAsync(pd.DownloadUrl)
-                    .ContinueWith(async bytes => await File.WriteAllBytesAsync(pd.Path, bytes.Result, token), token)
-                    .Unwrap();
-            });
+                var outputDir = Path.Combine(destinationFolder, rover, date.ToString("yyyy-MM-dd"));
+                if (!Directory.Exists(outputDir)) Directory.CreateDirectory(outputDir);
+
+                await (
+                        from photoUrl in (await GetPhotoUrls(rover, date, apiKey, token))
+                        let path = Path.Combine(outputDir, photoUrl.Substring(photoUrl.LastIndexOf('/') + 1))
+                        where !File.Exists(path)
+                        select new {DownloadUrl = photoUrl, Path = path}
+                    )
+                    .ForEachAsync(Environment.ProcessorCount, async pd =>
+                    {
+                        await s_httpClient.GetByteArrayAsync(pd.DownloadUrl)
+                            .ContinueWith(async bytes => await File.WriteAllBytesAsync(pd.Path, bytes.Result, token), token)
+                            .Unwrap();
+                    });
+            }
         }
 
-        public static void ShowHelp()
+        private static void ShowHelp()
         {
             Console.WriteLine(@"
-SimplePhotoDownloader v0.3.0
+SimplePhotoDownloader v0.4.0
 
   Downloads NASA Mars Curiosity rover photos for the specified date. Dates
   which cannot be parsed are simply ignored.
 
-  usage: SimplePhotoDownloader --date <date> [--output <path>] [--api-key <key>]
+  usage SimplePhotoDownloader.exe (--date <date> | --dates <path>)
+                                  [--api-key <api-key>] [--output <path>]
 
     --api-key <key>          The API key to use when retrieving photos.
                              You can use DEMO_KEY, but it's rate-limited.
@@ -171,6 +151,10 @@ SimplePhotoDownloader v0.3.0
                                M/d/yy; MM/dd/yy; MMMM d, yyyy; MMMM dd, yyyy
                                MMM-d-yy; MMM-dd-yy; MMM-d-yyyy, MMM-dd-yyyy
 
+    --dates <path>           Downloads photos for the NASA Mars rovers for the
+                             dates listed in the file specified by <path>. The
+                             file should consist of one date per line.
+
     --output <path>          A path to where Mars rover photos should be
                              downloaded. Photos will be stored in sub-folders
                              by rover by date.
@@ -180,22 +164,6 @@ SimplePhotoDownloader v0.3.0
     --help                   Shows this help.
 
 ");
-        }
-    }
-
-    public static class Helpers
-    {
-        // Taken from 'Concurrency in .NET' by Ricardo Terrell, Manning, 2018, p. 304
-        public static Task ForEachAsync<T>(this IEnumerable<T> source, int maxDegreeOfParallelism, Func<T, Task> body)
-        {
-            return Task.WhenAll(
-                from partition in Partitioner.Create(source).GetPartitions(maxDegreeOfParallelism)
-                select Task.Run(async () =>
-                {
-                    using (partition)
-                        while (partition.MoveNext())
-                            await body(partition.Current);
-                }));
         }
     }
 }
