@@ -2,9 +2,8 @@
 
 ## Introduction
 
-This is a simple application that allows you to retrieve URLs for photos taken by
-NASA's Mars rover Curiosity so that they can be downloaded. Currently, it's a
-mimimal console application.
+This is a simple application that allows you to download photos taken by
+NASA's Mars rover Curiosity. Currently, it's a mimimal console application.
 
 ## Prerequisites
 
@@ -41,11 +40,18 @@ SimplePhotoDownloader v0.1.0
                                   on the specified date. This argument is
                                   mutually exclusive with --dates
 
+    --output <path>               Specify the destination folder where photos
+                                  will be stored. If this argument is not spec-
+                                  ified, on Windows photos will be stored at:
+
+                                    %USERPROFILE%\Pictures\MarsRoverPhotos
+
+                                  Photos will be organized by rover by date.
+
     --help                        Shows this help.
 ```
 
-Currently, the application only shows the URLs of photos which can be downloaded for the
-NASA Mars rover Curiosity on a given date.
+Currently, the application only downloads photos for the NASA Mars rover Curiosity.
 
 ## Known Issues / Limitations
 
@@ -55,7 +61,6 @@ NASA Mars rover Curiosity on a given date.
 
 ## Planned Additional Features
 
-* Download the photos for the specified date
 * Allow dates to be listed in a file and read by the application to download photos for mulitple dates
 * Allow photos to be retrieved for NASA Mars rovers Spirit and Opportunity.
 * Put this feature set behind a Web API, which will act as an "intermediate cache"
