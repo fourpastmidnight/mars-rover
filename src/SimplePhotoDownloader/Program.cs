@@ -1,5 +1,9 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Linq;
+using System.Net.Http;
+using System.Threading.Tasks;
+using Newtonsoft.Json.Linq;
 
 namespace SimplePhotoDownloader
 {
@@ -8,7 +12,7 @@ namespace SimplePhotoDownloader
         private static DateTime s_date;
         private static string s_apiKey = "DEMO_KEY";
 
-        static int Main(string[] args)
+        static async Task<int> Main(string[] args)
         {
             if (args.Length == 0 || (args.Length == 1 && args[0].Equals("--help", StringComparison.OrdinalIgnoreCase)))
             {
@@ -52,14 +56,30 @@ namespace SimplePhotoDownloader
                 s_apiKey = argsList[apiKeyIndex + 1];
             }
 
-            Console.WriteLine("Succesfully processed arguments.");
+            var photoUrls = await GetPhotoUrls("curiosity", s_date, s_apiKey);
+            Console.WriteLine($"Found {photoUrls.Count} photos:");
+            photoUrls.ForEach(u => Console.WriteLine($"  {u}"));
+            Console.WriteLine();
+
             return 0;
+        }
+
+        public static async Task<List<string>> GetPhotoUrls(string rover, DateTime date, string apiKey)
+        {
+            HttpClient _httpClient = new HttpClient();
+
+            var response = await _httpClient.GetAsync($"https://api.nasa.gov/mars-photos/api/v1/rovers/{rover}/photos?earth_date={date:yyyy-MM-dd}&api_key={apiKey}").ConfigureAwait(false);
+
+            if (!response.IsSuccessStatusCode) return Enumerable.Empty<string>().ToList();
+
+            var photos = JObject.Parse(await response.Content.ReadAsStringAsync())["photos"];
+            return (from p in photos select p["img_src"]?.ToString() ?? "").Distinct().ToList();
         }
 
         public static void ShowHelp()
         {
             Console.WriteLine(@"
-SimplePhotoDownloader v0.1.0
+SimplePhotoDownloader v0.2.0
 
   Downloads NASA Mars Curiosity rover photos for the specified date. Dates
   which cannot be parsed are simply ignored.

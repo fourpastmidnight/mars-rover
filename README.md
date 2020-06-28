@@ -44,7 +44,8 @@ SimplePhotoDownloader v0.1.0
     --help                        Shows this help.
 ```
 
-Currently, the application only validates that arguments are processed correctly.
+Currently, the application only shows the URLs of photos which can be downloaded for the
+NASA Mars rover Curiosity on a given date.
 
 ## Known Issues / Limitations
 
