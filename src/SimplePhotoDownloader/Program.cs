@@ -69,7 +69,7 @@ namespace SimplePhotoDownloader
 
             try
             {
-                await DownloadPhotos("Curiosity", dates, apiKey, output, cts.Token);
+                await DownloadPhotos(new [] { "Curiosity", "Opportunity", "Spirit" }, dates, apiKey, output, cts.Token);
             }
             catch (OperationCanceledException)
             {
@@ -90,7 +90,7 @@ namespace SimplePhotoDownloader
             return 0;
         }
 
-        public static async Task<List<string>> GetPhotoUrls(string rover, DateTime date, string apiKey, CancellationToken token = default)
+        private static async Task<List<string>> GetPhotoUrls(string rover, DateTime date, string apiKey, CancellationToken token = default)
         {
             var response = await s_httpClient.GetAsync($"https://api.nasa.gov/mars-photos/api/v1/rovers/{rover}/photos?earth_date={date:yyyy-MM-dd}&api_key={apiKey}", token).ConfigureAwait(false);
 
@@ -103,11 +103,22 @@ namespace SimplePhotoDownloader
             return (from p in photos select p["img_src"]?.ToString() ?? "").Distinct().ToList();
         }
 
-        public static async Task DownloadPhotos(string rover, List<DateTime> dates, string apiKey, string destinationFolder, CancellationToken token = default)
+        private static async Task DownloadPhotos(IEnumerable<string> rovers, IEnumerable<DateTime> dates, string apiKey, string destinationFolder, CancellationToken token = default)
         {
+            // ReSharper disable once PossibleMultipleEnumeration
+            // ! dates is not enumerated over twice...
+            foreach (var rover in rovers) await DownloadPhotos(rover, dates, apiKey, destinationFolder, token);
+        }
+
+        private static async Task DownloadPhotos(string rover, IEnumerable<DateTime> dates, string apiKey, string destinationFolder, CancellationToken token = default)
+        {
+            var roverDir = Path.Combine(destinationFolder, rover);
+
             foreach (var date in dates)
             {
-                var outputDir = Path.Combine(destinationFolder, rover, date.ToString("yyyy-MM-dd"));
+                Console.Write($"  Downloading photos for NASA Mars rover {rover} on {date:dd MMMM yyyy} ...");
+
+                var outputDir = Path.Combine(roverDir, date.ToString("yyyy-MM-dd"));
                 if (!Directory.Exists(outputDir)) Directory.CreateDirectory(outputDir);
 
                 await (
@@ -122,16 +133,22 @@ namespace SimplePhotoDownloader
                             .ContinueWith(async bytes => await File.WriteAllBytesAsync(pd.Path, bytes.Result, token), token)
                             .Unwrap();
                     });
+
+                if (!Directory.EnumerateFileSystemEntries(outputDir).Any()) Directory.Delete(outputDir);
+
+                Console.WriteLine("Done.");
             }
+
+            if (!Directory.EnumerateFileSystemEntries(roverDir).Any()) Directory.Delete(roverDir);
         }
 
         private static void ShowHelp()
         {
             Console.WriteLine(@"
-SimplePhotoDownloader v0.4.0
+SimplePhotoDownloader v0.5.0
 
-  Downloads NASA Mars Curiosity rover photos for the specified date. Dates
-  which cannot be parsed are simply ignored.
+  Downloads NASA Mars Curiosity, Spirit and Opportunity rover photos for the
+  specified date. Dates which cannot be parsed are simply ignored.
 
   usage SimplePhotoDownloader.exe (--date <date> | --dates <path>)
                                   [--api-key <api-key>] [--output <path>]

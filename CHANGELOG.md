@@ -1,5 +1,10 @@
 # CHANGELOG
 
+## Version 0.5.0
+
+* **NEW** Photos for each specified date are downloaded for all current NASA Mars
+  rovers, currently Curiosity, Spirit and Opportunity.
+
 ## Version 0.4.0
 
 * **NEW** Adds a new `--dates` parameter that accepts a path to a file containing
