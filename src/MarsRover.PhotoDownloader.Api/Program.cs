@@ -1,7 +1,4 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
+using MarsRover.PhotoDownload.Api.Extensions;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Hosting;
@@ -21,6 +18,10 @@ namespace MarsRover.PhotoDownloader.Api
                 .ConfigureWebHostDefaults(webBuilder =>
                 {
                     webBuilder.UseStartup<Startup>();
+                })
+                .ConfigureMarsRoverPhotoDownloadApi((hostingContext, photoDownloadApi) =>
+                {
+                    photoDownloadApi.AddConfiguration(hostingContext.Configuration.GetSection("MarsRover.PhotoDownload.Api.Settings"));
                 });
     }
 }

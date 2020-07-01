@@ -1,10 +1,13 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Net.Http;
 using System.Threading.Tasks;
+using MarsRover.PhotoDownload.Api.Extensions;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Options;
 
 namespace MarsRover.PhotoDownload.Api.Controllers
 {
@@ -12,12 +15,20 @@ namespace MarsRover.PhotoDownload.Api.Controllers
     [ApiController]
     public class RoverPhotosController : ControllerBase
     {
+        IOptions<MarsRoverPhotoDownloadApiOptions> _roverApiOptions;
+
+        public RoverPhotosController(IOptions<MarsRoverPhotoDownloadApiOptions> roverApiOptions)
+        {
+            _roverApiOptions = roverApiOptions;
+        }
+
         public ActionResult GetRoverPhotos([FromQuery]uint skip = 0, [FromQuery]uint take = 10)
         {
             var skipping = skip * take;
             var first = (skip * take) + 1;
             var last = (skip * take) + take;
-            return Content($"Skipping {skipping} photos and getting photos {first} through {last}...");
+            return Content(@$"Initial date file path: {_roverApiOptions.Value.InitialDatesFilepath}
+Skipping {skipping} photos and getting photos {first} through {last}...");
         }
 
         [Route("{rover}/{date:datetime}")]
@@ -69,5 +80,7 @@ namespace MarsRover.PhotoDownload.Api.Controllers
 
         // TODO: Put all of this stuff in a testable, self-contained class...
         private readonly HttpClient _httpClient;
+
+
     }
 }
