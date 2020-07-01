@@ -1,86 +1,154 @@
 ﻿using System;
-using System.Collections.Generic;
+using System.ComponentModel.DataAnnotations;
 using System.IO;
 using System.Linq;
-using System.Net.Http;
-using System.Threading.Tasks;
+using System.Net.Mime;
+using Ardalis.SmartEnum;
 using MarsRover.PhotoDownload.Api.Extensions;
-using Microsoft.AspNetCore.Http;
+using MarsRover.PhotoDownload.Api.Models;
+using MarsRover.PhotoDownloader;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
 
 namespace MarsRover.PhotoDownload.Api.Controllers
 {
-    [Route("api/rover-photos")]
     [ApiController]
-    public class RoverPhotosController : ControllerBase
+    [Route("api/rover-photos")]
+    [Produces("application/json")]
+    public class RoverPhotosController : Controller
     {
-        IOptions<MarsRoverPhotoDownloadApiOptions> _roverApiOptions;
+        public RoverPhotosController(IOptions<MarsRoverPhotoDownloadApiOptions> roverApiOptions) =>
+            ImagesPath = roverApiOptions.Value.ImagesPath;
 
-        public RoverPhotosController(IOptions<MarsRoverPhotoDownloadApiOptions> roverApiOptions)
+        private string ImagesPath { get; }
+
+        public IActionResult GetRoverPhotos(
+            [FromQuery, Range(0, int.MaxValue)] int skip = 0,
+            [FromQuery, Range(0, int.MaxValue)] int take = 10)
         {
-            _roverApiOptions = roverApiOptions;
+            var photoUrls = (
+                    from rover in SmartEnum<Rover>.List
+                    from dir in Directory.GetDirectories(Path.Combine(ImagesPath, rover.Name))
+                    from filePath in Directory.EnumerateFiles(dir)
+                    where !filePath.EndsWith("NoPhotos.txt")
+                    let canonicalizedFilePath = filePath.Replace('\\', '/')
+                    let relativeUrl = Url.Action(
+                        nameof(DownloadRoverPhotos),
+                        new
+                        {
+                            roverName = rover.Name,
+                            date = canonicalizedFilePath.Substring(
+                                canonicalizedFilePath.IndexOf(rover.Name, StringComparison.OrdinalIgnoreCase) + rover.Name.Length + 1,
+                                10),
+                            filename = canonicalizedFilePath.Substring(canonicalizedFilePath.LastIndexOf('/') + 1)
+                        })
+                    select $"{Request.Scheme}://{Request.Host.ToUriComponent()}{relativeUrl}"
+                )
+                .Skip(skip)
+                .Take(take)
+                .ToList();
+
+            return photoUrls.Count > 0
+                ? (IActionResult) Json(new PhotoUrls {Photos = photoUrls})
+                : NoContent();
         }
 
-        public ActionResult GetRoverPhotos([FromQuery]uint skip = 0, [FromQuery]uint take = 10)
+        [Route("{roverName}/{date:datetime}")]
+        public IActionResult GetRoverPhotosByDate([FromRoute] string roverName, [FromRoute] DateTime date)
         {
-            var skipping = skip * take;
-            var first = (skip * take) + 1;
-            var last = (skip * take) + take;
-            return Content(@$"Initial date file path: {_roverApiOptions.Value.InitialDatesFilepath}
-Skipping {skipping} photos and getting photos {first} through {last}...");
-        }
+            if (!SmartEnum<Rover>.TryFromName(roverName, true, out _)) return NoContent();
 
-        [Route("{rover}/{date:datetime}")]
-        public ActionResult GetRoverPhotosByDate(Rover rover, DateTime date)
-        {
-            // TODO: Return JSONResult containing an array of available photo URLs for a given rover on a given date
-            // If there are no photos stored locally:
-            //   1. query the NASA API and obtain the list of URLS
-            //   2. If there are any photos available for the selected date and rover:
-            //      a. Transform the list of URLs to the list of local URLs where the photos can be obtained by this api
-            //         - return this list
-            //      b. Start a task that will begin retrieving the photos via the NASA API, storing them locally for retrieval
-            //   3. If no photos are available for the selected date and rover, return a 204 No Content.
-            return Content("No photos taken by this rover on that date.");
+            var roverDir = Path.Combine(ImagesPath, roverName);
+            var roverDateDir = Path.Combine(roverDir, date.ToString("yyyy-MM-dd"));
+
+            if (System.IO.File.Exists(Path.Combine(roverDateDir, "NoPhotos.txt"))) return NoContent();
+
+            return Json(new PhotoUrls
+            {
+                Photos = Directory.EnumerateFiles(roverDateDir)
+                    .Select(f => f.Replace('\\', '/'))
+                    .Select(f =>
+                        Url.Action(nameof(DownloadRoverPhotos), new
+                        {
+                            roverName,
+                            date = date.ToString("yyyy-MM-dd"),
+                            filename = f.Substring(f.LastIndexOf('/') + 1)
+                        }))
+                    .Select(ru => $"{Request.Scheme}://{Request.Host.ToUriComponent()}{ru}")
+                    .ToList()
+            });
         }
 
         [Route("{date:datetime}")]
-        public ActionResult GetPhotosByDate(DateTime date)
+        public IActionResult GetPhotosByDate(DateTime date)
         {
-            // TODO: Return JSONResult containing an array of available photo URLs for a given date
-            // If there are no photos stored locally for any rover on the given date:
-            //   1. query the NASA API and obtain the list of URLS
-            //   2. If there are any photos available for the selected date and rover:
-            //      a. Transform the list of URLs to the list of local URLs where the photos can be obtained by this api
-            //         - return this list
-            //      b. Start a task that will begin retrieving the photos via the NASA API, storing them locally for retrieval
-            //   3. If no photos are available for the selected date and rover, return a 204 No Content.
-            return Content("No photos were taken on this date.");
+            var photoUrls = (
+                    from rover in SmartEnum<Rover>.List
+                    from dir in Directory.GetDirectories(Path.Combine(ImagesPath, rover.Name))
+                    where dir.Split('\\', '/').Last() == date.ToString("yyyy-MM-dd")
+                    from filePath in Directory.EnumerateFiles(dir)
+                    where !filePath.EndsWith("NoPhotos.txt")
+                    let canonicalizedFilePath = filePath.Replace('\\', '/')
+                    let relativeUrl = Url.Action(
+                        nameof(DownloadRoverPhotos),
+                        new
+                        {
+                            roverName = rover.Name,
+                            date = date.ToString("yyyy-MM-dd"),
+                            filename = canonicalizedFilePath.Substring(canonicalizedFilePath.LastIndexOf('/') + 1)
+                        })
+                    select $"{Request.Scheme}://{Request.Host.ToUriComponent()}{relativeUrl}"
+                )
+                .ToList();
+
+            return photoUrls.Count > 0
+                ? (IActionResult) Json(new PhotoUrls {Photos = photoUrls})
+                : NoContent();
         }
 
-        [Route("{rover}")]
-        public ActionResult GetPhotosByRover(Rover rover)
+        [Route("{roverName}")]
+        public IActionResult GetPhotosByRover(string roverName)
         {
-            // TODO: Return JSONResult containing an array of available photo URLs for a given date
-            // If there are no photos stored locally for a given rover, return 204 No Content
-            // Otherwise, return a list of available photo urls.
-            // NOTE: This call does not attempt to go out and retrieve any photos from NASA's API, as their api
-            // requires both a rover AND a date and there are thousands of photos available.
-            // Also, this application does not attempt to query the rover's mission manifest to know which dates are valid for a given rover.
-            return Content("Nothing to see here.");
+            if (!SmartEnum<Rover>.TryFromName(roverName, true, out _)) return NoContent();
+
+            var photoUrls = (
+                    from dir in Directory.GetDirectories(Path.Combine(ImagesPath, roverName))
+                    from filePath in Directory.EnumerateFiles(dir)
+                    where !filePath.EndsWith("NoPhotos.txt")
+                    let canonicalizedFilePath = filePath.Replace('\\', '/')
+                    let relativeUrl = Url.Action(
+                        nameof(DownloadRoverPhotos),
+                        new
+                        {
+                            roverName,
+                            date = dir.Split('\\', '/').Last(),
+                            filename = canonicalizedFilePath.Substring(canonicalizedFilePath.LastIndexOf('/') + 1)
+                        })
+                    select $"{Request.Scheme}://{Request.Host.ToUriComponent()}{relativeUrl}"
+                )
+                .ToList();
+
+            return photoUrls.Count > 0
+                ? (IActionResult) Json(new PhotoUrls {Photos = photoUrls})
+                : NoContent();
         }
 
-        [Route("download/{rover}/{date:datetime}/{filename}")]
-        public ActionResult DownloadRoverPhotos(Rover rover, DateTime date, string filename)
+        [Route("download/{roverName}/{date:datetime}/{filename}")]
+        public ActionResult DownloadRoverPhotos(string roverName, DateTime date, string filename)
         {
-            // Retrieves a cached photo by rover, date, and filename.
-            return Content("Not implemented yet.");
+            var relativePath = Path.Combine(ImagesPath, roverName, date.ToString("yyyy-MM-dd"), filename);
+            var contentType = Path.GetExtension(filename) switch
+            {
+                ".jpg" => MediaTypeNames.Image.Jpeg,
+                ".jpeg" => MediaTypeNames.Image.Jpeg,
+                ".gif" => MediaTypeNames.Image.Gif,
+                ".tiff" => MediaTypeNames.Image.Tiff,
+                _ => MediaTypeNames.Application.Octet
+            };
+
+            if (!System.IO.File.Exists(relativePath)) return NoContent();
+
+            return PhysicalFile(Path.GetFullPath(relativePath), contentType);
         }
-
-        // TODO: Put all of this stuff in a testable, self-contained class...
-        private readonly HttpClient _httpClient;
-
-
     }
 }
