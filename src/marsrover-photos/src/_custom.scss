@@ -1,0 +1,45 @@
+/*@import 'foundation-sites/scss/foundation';
+@include foundation-everything*/
+@import '~bootstrap/scss/bootstrap.scss';
+
+main {
+    padding-top: 56px;
+}
+
+@include media-breakpoint-down(xl) {
+    #roverPhotosCarousel {
+        height: 35vh;
+
+        &>.carousel-inner>div {
+            height: 35vh;
+        }
+    }
+}
+
+@include media-breakpoint-down(sm) {
+    #roverPhotosCarousel {
+        height: 50vh;
+
+        &>.carousel-inner>div {
+            height: 50vh;
+        }
+    }
+}
+
+@include media-breakpoint-down(xs) {
+    main {
+        padding-top: 113px;
+    }
+
+    #roverPhotosCarousel {
+        height: 30vh;
+
+        &>.carousel-inner>div {
+            height: 30vh;
+        }
+    }
+
+    #search {
+        width: 100%
+    }
+}

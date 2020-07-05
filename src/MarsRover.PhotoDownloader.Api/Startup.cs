@@ -42,6 +42,8 @@ namespace MarsRover.PhotoDownloader.Api
 
             app.UseHttpsRedirection();
 
+            app.UseCors(config => config.AllowAnyOrigin());
+
             app.UseRouting();
 
             app.UseAuthorization();
