@@ -4,18 +4,10 @@ import PropTypes from 'prop-types';
 import moment from 'moment';
 
 
-const RoverPhotosBanner = ({id, carouselPhotoUrls}) => {
+const RoverPhotosBanner = ({id, carouselPhotoUrls, getPhotoRoverName}) => {
     function getPhotoDate(photoUrl) {
         const endOfDateIndex = photoUrl.lastIndexOf('/') - 1;
         return moment(photoUrl.substr(endOfDateIndex - 10, endOfDateIndex), "YYYY-MM-DD").format('LL');
-    }
-
-    function getPhotoRoverName(photoUrl) {
-        const apiEndpoint = 'rover-photos/download/'
-        const roverNameIndex= photoUrl.indexOf(apiEndpoint) + apiEndpoint.length
-        const endOfRoverNameIndex = photoUrl.substr(roverNameIndex).lastIndexOf('/') - 11;
-        const roverName = photoUrl.substr(roverNameIndex, endOfRoverNameIndex);
-        return roverName.replace(/^\w/, c => c.toUpperCase());
     }
 
     return (
