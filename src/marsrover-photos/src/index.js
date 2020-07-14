@@ -21,7 +21,7 @@ ReactDOM.render(
             </div>
             <Navbar.Collapse id="basic-navbar-nav">
               <Nav>
-                <NavLink className="nav-link active" to="/" exact>Home</NavLink>
+                <NavLink className="nav-link" to="/" exact>Home</NavLink>
                 <NavLink className="nav-link" to="/curiosity">Curiosity Photos</NavLink>
                 <NavLink className="nav-link" to="/opportunity">Opportunity Photos</NavLink>
                 <NavLink className="nav-link" to="/spirit">Spirit Photos</NavLink>

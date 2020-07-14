@@ -6,6 +6,10 @@ main {
     padding-top: 56px;
 }
 
+.ReactModal__Overlay--after-open {
+    z-index: 1500 !important;
+}
+
 @include media-breakpoint-down(xl) {
     #roverPhotosCarousel {
         height: 35vh;

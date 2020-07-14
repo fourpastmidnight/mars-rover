@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Button, Card, CardDeck, Col, Container, Row } from 'react-bootstrap';
+import { Link } from 'react-router-dom';
 import PropTypes from 'prop-types';
 import RoverPhotosBanner from './RoverPhotosBanner';
 import * as Api from '../../api/marsRoverPhotosApi'
@@ -64,16 +65,18 @@ const HomePage = ({numCarouselPhotos}) => {
                                     {cardPhotos.map(p => {
                                         const roverName = getPhotoRoverName(p);
                                         return (
-                                            <Card key={roverName}>
-                                                <div className="w-100">
-                                                    <Card.Img variant="top" src={p} style={{height: "200px"}} />
+                                            <Card key={roverName} className="shadow-lg">
+                                                <div className="w-100" style={{backgroundColor: "#282828"}}>
+                                                    <Card.Img variant="top" src={p} style={{height: "200px", objectFit: "cover"}} />
                                                 </div>
                                                 <Card.Body>
-                                                    <Card.Title>{roverName}</Card.Title>
+                                                    <Card.Title>{roverName} Rover Photos</Card.Title>
                                                     <Card.Text>
                                                         See more NASA Mars {roverName} Rover photos
                                                     </Card.Text>
-                                                    <Button variant="primary" className="stretched-link">{roverName} Photos</Button>
+                                                    <Link to={`/${roverName}`} className="stretched-link">
+                                                        <Button variant="primary">{roverName} Photos</Button>
+                                                    </Link>
                                                 </Card.Body>
                                             </Card>
                                         );
